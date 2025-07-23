@@ -1,0 +1,4 @@
+langchain_community
+ipykernel
+unstructured[pdf]
+pdfminer
