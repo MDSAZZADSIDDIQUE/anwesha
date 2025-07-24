@@ -3,3 +3,5 @@ ipykernel
 unstructured[local-inference]
 ipywidgets
 pymupdf
+sentence_transformers
+chromadb
