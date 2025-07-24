@@ -9,3 +9,4 @@ langchain_huggingface
 python-dotenv
 langchain-groq
 ragas
+langchain
