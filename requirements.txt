@@ -10,3 +10,7 @@ python-dotenv
 langchain-groq
 ragas
 langchain
+pdfplumber
+pypdf
+mistralai
+langchain-google-genai
