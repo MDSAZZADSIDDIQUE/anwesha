@@ -19,3 +19,4 @@ marker-pdf
 agentic-doc
 langchain-qdrant
 langchain-pinecone
+neo4j
