@@ -17,3 +17,5 @@ langchain-google-genai
 langchain-docling
 marker-pdf
 agentic-doc
+langchain-qdrant
+langchain-pinecone
