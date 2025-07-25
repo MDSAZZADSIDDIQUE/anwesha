@@ -20,3 +20,6 @@ agentic-doc
 langchain-qdrant
 langchain-pinecone
 neo4j
+ragatouille
+langgraph
+tavily-python
