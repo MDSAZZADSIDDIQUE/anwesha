@@ -1,202 +1,171 @@
-# app.py
+import os
+import sys
+import asyncio
 import streamlit as st
-import requests
-import json
-import time
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from langchain_community.vectorstores import Chroma
+from dotenv import load_dotenv
+
+# LangChain and RAG components
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain import hub
+from langchain_community.vectorstores import Chroma
 from langchain_groq import ChatGroq
+from langchain import hub
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
+from langchain.prompts import ChatPromptTemplate
 from langchain.load import dumps, loads
 from operator import itemgetter
-from langchain_core.prompts import ChatPromptTemplate
-import threading
-import os
 
-# --- 1. FLASK BACKEND SETUP ---
+# --- GLOBAL INITIALIZATION (Load models once) ---
 
-# Initialize Flask app
-app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+# Load environment variables from .env file for local development
+# On Streamlit Cloud, these will be set as Secrets
+load_dotenv()
 
-# --- Load RAG components ---
-# NOTE: This part can be slow and memory-intensive. It runs once when the app starts.
+st.set_page_config(
+    page_title="Anwesha RAG Chatbot",
+    page_icon="📚",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Use Streamlit's secrets for the API key when deployed
+groq_api_key = os.environ.get("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
+
+if not groq_api_key:
+    st.error("GROQ_API_KEY is not set. Please add it to your environment variables or Streamlit secrets.")
+    st.stop()
+
+# --- Cached functions to load models and data once ---
 
 
 @st.cache_resource
-def load_rag_pipeline():
-    """Loads all the components needed for the RAG pipeline and caches them."""
-    # Load embeddings
-    embeddings = HuggingFaceEmbeddings(
-        model_name="intfloat/multilingual-e5-large-instruct")
+def load_embeddings():
+    """Load the embedding model."""
+    return HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-large-instruct")
 
-    # Check if the database directory exists, if not, this will fail.
-    # You need to run the data ingestion part of your notebook first to create this.
+
+@st.cache_resource
+def load_retriever(_embeddings):
+    """Load the vector store and retriever."""
+    # IMPORTANT: Ensure this path is correct relative to your app's root in the repo.
+    # If your app.py is in the root, and the database is in a 'db' folder,
+    # the path would be "db/anwesha_chroma_)db"
     persist_directory = "database/anwesha_chroma_)db"
     if not os.path.exists(persist_directory):
-        # A simple way to handle missing DB is to stop the app and inform the user.
         st.error(
-            "ChromaDB database not found. Please run the data ingestion script from the notebook first to create it.")
+            f"ChromaDB directory not found at '{persist_directory}'. Please ensure the database directory is included in your GitHub repository and the path is correct.")
         st.stop()
-
     vectorstore = Chroma(persist_directory=persist_directory,
-                         embedding_function=embeddings)
-    retriever = vectorstore.as_retriever()
-
-    # Load prompt from hub
-    prompt = hub.pull("rlm/rag-prompt")
-
-    # Initialize LLM
-    llm = ChatGroq(model="moonshotai/kimi-k2-instruct")
-
-    # --- Helper functions ---
-    def format_docs(docs):
-        return "\n\n".join(doc.page_content for doc in docs)
-
-    def reciprocal_rank_fusion(results: list[list], k=60):
-        fused_scores = {}
-        for docs in results:
-            for rank, doc in enumerate(docs):
-                doc_str = dumps(doc)
-                if doc_str not in fused_scores:
-                    fused_scores[doc_str] = 0
-                fused_scores[doc_str] += 1 / (rank + k)
-        reranked_results = [
-            (loads(doc), score)
-            for doc, score in sorted(fused_scores.items(), key=lambda x: x[1], reverse=True)
-        ]
-        return [doc for doc, _ in reranked_results]
-
-    # --- RAG Chain Definition ---
-    template = """You are an AI language model assistant. Your task is to generate five 
-    different versions of the given user question to retrieve relevant documents from a vector 
-    database. By generating multiple perspectives on the user question, your goal is to help
-    the user overcome some of the limitations of the distance-based similarity search. 
-    Provide these alternative questions separated by newlines. Original question: {question}"""
-    prompt_perspectives = ChatPromptTemplate.from_template(template)
-
-    generate_queries = (
-        prompt_perspectives
-        | ChatGroq(model="llama3-8b-8192")
-        | StrOutputParser()
-        | (lambda x: x.split("\n"))
-    )
-
-    retrieval_chain_with_reranking = generate_queries | retriever.map() | reciprocal_rank_fusion
-
-    final_rag_chain = (
-        {"context": retrieval_chain_with_reranking,
-            "question": itemgetter("question")}
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
-    return final_rag_chain
+                         embedding_function=_embeddings)
+    return vectorstore.as_retriever()
 
 
-# Load the pipeline
-final_rag_chain = load_rag_pipeline()
-
-# --- API Endpoint ---
-
-
-@app.route('/chat', methods=['POST'])
-def chat():
-    """Handles chat requests."""
-    data = request.json
-    question = data.get('question')
-
-    if not question:
-        return jsonify({'error': 'No question provided'}), 400
-
-    try:
-        response = final_rag_chain.invoke({"question": question})
-        return jsonify({'response': response})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# --- Function to run Flask app in a thread ---
+@st.cache_resource
+def load_llm(_groq_api_key):
+    """Load the Language Model."""
+    return ChatGroq(model="moonshotai/kimi-k2-instruct", api_key=_groq_api_key)
 
 
-def run_flask_app():
-    # Note: Setting debug=False is important for production environments
-    app.run(host='0.0.0.0', port=5000, debug=False)
+# --- Load all components ---
+with st.spinner("Loading models and vector store..."):
+    embeddings = load_embeddings()
+    retriever = load_retriever(embeddings)
+    llm = load_llm(groq_api_key)
+    prompt_template = hub.pull("rlm/rag-prompt")
 
 
-# --- Start Flask app in a background thread ---
-# This ensures the Flask server is running and ready to accept requests from Streamlit
-flask_thread = threading.Thread(target=run_flask_app, daemon=True)
-flask_thread.start()
+# --- RAG CHAIN DEFINITION ---
+
+def format_docs(docs):
+    """Formats retrieved documents into a single string."""
+    if isinstance(docs, list) and docs and isinstance(docs[0], tuple):
+        return "\n\n".join(doc.page_content for doc, score in docs)
+    return "\n\n".join(doc.page_content for doc in docs)
 
 
-# --- 2. STREAMLIT FRONTEND ---
+multi_query_template = """You are an AI language model assistant. Your task is to generate five 
+different versions of the given user question to retrieve relevant documents from a vector 
+database. By generating multiple perspectives on the user question, your goal is to help
+the user overcome some of the limitations of the distance-based similarity search. 
+Provide these alternative questions separated by newlines. Original question: {question}"""
+prompt_perspectives = ChatPromptTemplate.from_template(multi_query_template)
 
-# --- Streamlit Page Configuration ---
-st.set_page_config(page_title="RAG Chat App", page_icon="🤖")
-st.title("HSC Bangla 1st Paper - RAG Chatbot")
-st.write("Ask me anything about 'Aparichita' from the HSC Bangla 1st Paper!")
+generate_queries = (
+    prompt_perspectives
+    | llm
+    | StrOutputParser()
+    | (lambda x: x.split("\n"))
+)
 
-# --- Backend API URL ---
-FLASK_BACKEND_URL = "http://127.0.0.1:5000/chat"
 
-# --- Chat History Management ---
+def reciprocal_rank_fusion(results: list[list], k=60):
+    fused_scores = {}
+    for docs in results:
+        for rank, doc in enumerate(docs):
+            doc_str = dumps(doc)
+            if doc_str not in fused_scores:
+                fused_scores[doc_str] = 0
+            fused_scores[doc_str] += 1 / (rank + k)
+    reranked_results = [
+        (loads(doc), score)
+        for doc, score in sorted(fused_scores.items(), key=lambda x: x[1], reverse=True)
+    ]
+    return reranked_results
+
+
+retrieval_chain_with_reranking = generate_queries | retriever.map() | reciprocal_rank_fusion
+
+final_rag_chain = (
+    {"context": retrieval_chain_with_reranking |
+        format_docs, "question": itemgetter("question")}
+    | prompt_template
+    | llm
+    | StrOutputParser()
+)
+
+# --- STREAMLIT UI DEFINITION ---
+
+st.markdown("""
+<style>
+    .stApp { background-color: #F0F2F6; }
+    div[data-testid="stChatMessage"] { border-radius: 10px; padding: 1rem; margin-bottom: 1rem; border: 1px solid transparent; }
+    div[data-testid="stChatMessage"][class*="assistant"] { background-color: #FFFFFF; }
+    div[data-testid="stChatMessage"][class*="user"] { background-color: #DCF8C6; }
+</style>
+""", unsafe_allow_html=True)
+
+with st.sidebar:
+    st.title("📚 Anwesha RAG System")
+    st.markdown(
+        "A chatbot to answer questions about Rabindranath Tagore's 'Aparichita'.")
+    st.markdown("---")
+    st.info("This is a production version of the Anwesha RAG chatbot.")
+
+st.title("Anwesha Chatbot")
+st.markdown("Ask me anything about 'Aparichita' in Bangla or English.")
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display chat messages from history on app rerun
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- User Input and Backend Interaction ---
-if prompt := st.chat_input("What is your question?"):
-    # Add user message to chat history
+if prompt := st.chat_input("আপনার প্রশ্ন লিখুন..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    # Display user message in chat message container
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Display assistant response in chat message container
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        full_response = ""
+        with st.spinner("Thinking..."):
+            try:
+                assistant_response = final_rag_chain.invoke(
+                    {"question": prompt})
+                message_placeholder.markdown(assistant_response)
+            except Exception as e:
+                assistant_response = f"An error occurred: {e}"
+                message_placeholder.error(assistant_response)
 
-        try:
-            # Prepare data for the POST request
-            payload = {"question": prompt}
-
-            # Send request to Flask backend
-            response = requests.post(
-                FLASK_BACKEND_URL, json=payload, timeout=120)  # Added timeout
-            response.raise_for_status()  # Raise an exception for bad status codes
-
-            assistant_response = response.json().get(
-                "response", "Sorry, I couldn't get a response.")
-
-            # Simulate stream of response with milliseconds delay
-            for chunk in assistant_response.split():
-                full_response += chunk + " "
-                time.sleep(0.05)
-                # Add a blinking cursor to simulate typing
-                message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
-
-        except requests.exceptions.RequestException as e:
-            full_response = f"Error connecting to the backend: {e}"
-            message_placeholder.error(full_response)
-        except Exception as e:
-            full_response = f"An error occurred: {e}"
-            message_placeholder.error(full_response)
-
-    # Add assistant response to chat history
     st.session_state.messages.append(
-        {"role": "assistant", "content": full_response})
-
-# --- Clear History Button ---
-if st.button("Clear Chat History"):
-    st.session_state.messages = []
-    st.rerun()
+        {"role": "assistant", "content": assistant_response})
