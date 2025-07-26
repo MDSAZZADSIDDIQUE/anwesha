@@ -1,12 +1,9 @@
-import sys
-__import__('pysqlite3')
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+from langchain_community.vectorstores import FAISS
 from dotenv import load_dotenv
 import streamlit as st
 import asyncio
 import os
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
 from langchain_groq import ChatGroq
 from langchain import hub
 from langchain_core.runnables import RunnablePassthrough
@@ -14,7 +11,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain.prompts import ChatPromptTemplate
 from langchain.load import dumps, loads
 from operator import itemgetter
-
 
 # --- GLOBAL INITIALIZATION (Load models once) ---
 
@@ -47,16 +43,18 @@ def load_embeddings():
 @st.cache_resource
 def load_retriever(_embeddings):
     """Load the vector store and retriever."""
-    # IMPORTANT: Ensure this path is correct relative to your app's root in the repo.
-    # If your app.py is in the root, and the database is in a 'db' folder,
-    # the path would be "db/anwesha_chroma_)db"
-    persist_directory = "../database/anwesha_chroma_)db"
+    persist_directory = "../database/anwesha_faiss_db"
     if not os.path.exists(persist_directory):
         st.error(
-            f"ChromaDB directory not found at '{persist_directory}'. Please ensure the database directory is included in your GitHub repository and the path is correct.")
+            f"FAISS directory not found at '{persist_directory}'. Please ensure the database directory is in your repository and the path is correct."
+        )
         st.stop()
-    vectorstore = Chroma(persist_directory=persist_directory,
-                         embedding_function=_embeddings)
+
+    vectorstore = FAISS.load_local(
+        folder_path=persist_directory,
+        embeddings=_embeddings,
+        allow_dangerous_deserialization=True
+    )
     return vectorstore.as_retriever()
 
 

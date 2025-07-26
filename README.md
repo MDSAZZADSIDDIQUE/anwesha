@@ -13,6 +13,7 @@ Anwesha is a state-of-the-art Retrieval-Augmented Generation (RAG) chatbot metic
 ![Screenshot (28).png](./images_of_the_project/Screenshot%20(28).png)
 ![Screenshot (29).png](./images_of_the_project/Screenshot%20(29).png)
 ![Screenshot (30).png](./images_of_the_project//Screenshot%20(30).png)
+![Screenshot (31).png](./images_of_the_project/Screenshot%20(31).png)
 
 -----
 
