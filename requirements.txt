@@ -8,3 +8,4 @@ langchain-groq
 sentence-transformers
 faiss-cpu
 langchain-community
+nest_asyncio
