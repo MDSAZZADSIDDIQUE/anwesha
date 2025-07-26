@@ -43,7 +43,7 @@ def load_embeddings():
 @st.cache_resource
 def load_retriever(_embeddings):
     """Load the vector store and retriever."""
-    persist_directory = "../database/anwesha_faiss_db"
+    persist_directory = "database/anwesha_faiss_db"
     if not os.path.exists(persist_directory):
         st.error(
             f"FAISS directory not found at '{persist_directory}'. Please ensure the database directory is in your repository and the path is correct."
