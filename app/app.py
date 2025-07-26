@@ -14,7 +14,8 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain.prompts import ChatPromptTemplate
 from langchain.load import dumps, loads
 from operator import itemgetter
-
+__import__('pysqlite3')
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 # --- GLOBAL INITIALIZATION (Load models once) ---
 
 # Load environment variables from .env file for local development

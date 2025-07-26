@@ -6,3 +6,4 @@ langchain-huggingface
 langchain-chroma
 langchain-groq
 sentence-transformers
+pysqlite3-binary
