@@ -128,15 +128,6 @@ final_rag_chain = (
 
 # --- STREAMLIT UI DEFINITION ---
 
-st.markdown("""
-<style>
-    .stApp { background-color: #F0F2F6; }
-    div[data-testid="stChatMessage"] { border-radius: 10px; padding: 1rem; margin-bottom: 1rem; border: 1px solid transparent; }
-    div[data-testid="stChatMessage"][class*="assistant"] { background-color: #FFFFFF; }
-    div[data-testid="stChatMessage"][class*="user"] { background-color: #DCF8C6; }
-</style>
-""", unsafe_allow_html=True)
-
 with st.sidebar:
     st.title("📚 Anwesha RAG System")
     st.markdown(
