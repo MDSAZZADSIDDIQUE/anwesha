@@ -111,15 +111,9 @@ def reciprocal_rank_fusion(results: list[list], k=60):
     return reranked_results
 
 
-retrieval_chain_with_reranking = generate_queries | retriever.map() | reciprocal_rank_fusion
+# Define only the final part of the chain that combines context and question
+final_rag_chain = prompt_template | llm | StrOutputParser()
 
-final_rag_chain = (
-    {"context": retrieval_chain_with_reranking |
-        format_docs, "question": itemgetter("question")}
-    | prompt_template
-    | llm
-    | StrOutputParser()
-)
 
 # --- STREAMLIT UI DEFINITION ---
 
@@ -149,9 +143,27 @@ if prompt := st.chat_input("আপনার প্রশ্ন লিখুন..
         message_placeholder = st.empty()
         with st.spinner("Thinking..."):
             try:
+                # 1. Generate multiple queries
+                queries = generate_queries.invoke({"question": prompt})
+
+                # 2. Retrieve documents for each query synchronously
+                retrieved_docs = []
+                for q in queries:
+                    # Use the standard .invoke() which is synchronous
+                    retrieved_docs.append(retriever.invoke(q))
+
+                # 3. Rerank the results using Reciprocal Rank Fusion
+                reranked_results = reciprocal_rank_fusion(retrieved_docs)
+
+                # 4. Format the final context
+                formatted_context = format_docs(reranked_results)
+
+                # 5. Invoke the final chain with the prepared context
                 assistant_response = final_rag_chain.invoke(
-                    {"question": prompt})
+                    {"context": formatted_context, "question": prompt}
+                )
                 message_placeholder.markdown(assistant_response)
+
             except Exception as e:
                 assistant_response = f"An error occurred: {e}"
                 message_placeholder.error(assistant_response)

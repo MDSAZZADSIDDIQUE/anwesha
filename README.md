@@ -7,6 +7,11 @@ Anwesha is a state-of-the-art Retrieval-Augmented Generation (RAG) chatbot metic
 
 -----
 
+
+## 🌟 Project deployed at: https://anwesha.streamlit.app/
+
+-----
+
 ## 🌟 SampSample queries and outputs
 
 ![Screenshot (27).png](./images_of_the_project/Screenshot%20(27).png)
