@@ -11,3 +11,4 @@ ragas
 chromadb
 sentence-transformers
 faiss-cpu
+pysqlite3-binary
