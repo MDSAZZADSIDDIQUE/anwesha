@@ -7,3 +7,4 @@ streamlit
 requests
 chromadb
 flask-cors
+sentence-transformers
