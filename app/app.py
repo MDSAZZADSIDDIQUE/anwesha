@@ -22,7 +22,7 @@ from operator import itemgetter
 load_dotenv()
 
 st.set_page_config(
-    page_title="Anwesha RAG Chatbot",
+    page_title="Anwesha-A Bengali PDF RAG Chatbot",
     page_icon="📚",
     layout="wide",
     initial_sidebar_state="expanded"
