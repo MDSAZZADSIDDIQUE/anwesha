@@ -1,23 +1,17 @@
-# --- IMPORTS AND ASYNCIO PATCH ---
-# The nest_asyncio patch must be applied before any other imports, especially Streamlit and asyncio.
-from langchain.load import dumps, loads
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
-from langchain.prompts import ChatPromptTemplate
-from langchain import hub
-from langchain_groq import ChatGroq
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
-import streamlit as st
-from dotenv import load_dotenv
+# No nest_asyncio needed in this version
 import os
-import asyncio
-import nest_asyncio
-nest_asyncio.apply()
-
+from dotenv import load_dotenv
+import streamlit as st
+from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_groq import ChatGroq
+from langchain import hub
+from langchain.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+from langchain.load import dumps, loads
 
 # --- GLOBAL INITIALIZATION ---
-# Load environment variables from .env file for local development
 load_dotenv()
 
 st.set_page_config(
@@ -64,7 +58,6 @@ def load_retriever(_embeddings):
 @st.cache_resource
 def load_llm(_groq_api_key):
     """Load the Language Model."""
-    # Use a valid Groq model. Options: "llama3-70b-8192", "mixtral-8x7b-32768", "gemma-7b-it"
     return ChatGroq(model="llama3-70b-8192", api_key=_groq_api_key)
 
 
@@ -79,7 +72,6 @@ with st.spinner("Loading models and vector store... This may take a moment."):
 
 
 def format_docs(docs):
-    """Formats retrieved documents into a single string."""
     return "\n\n".join(doc.page_content for doc in docs)
 
 
@@ -99,7 +91,6 @@ generate_queries = (
 
 
 def reciprocal_rank_fusion(results: list[list], k=60):
-    """Fuses retrieved documents using Reciprocal Rank Fusion."""
     fused_scores = {}
     for docs in results:
         for rank, doc in enumerate(docs):
@@ -145,21 +136,22 @@ if prompt := st.chat_input("আপনার প্রশ্ন লিখুন..
         message_placeholder = st.empty()
         with st.spinner("Thinking..."):
             try:
-                # 1. Generate multiple queries from the user's prompt
+                # 1. Generate multiple queries
                 queries = generate_queries.invoke({"question": prompt})
 
-                # 2. Asynchronously retrieve documents for all queries in parallel
-                retrieval_tasks = [retriever.ainvoke(q) for q in queries]
-                retrieved_docs_lists = asyncio.run(
-                    asyncio.gather(*retrieval_tasks))
+                # 2. Retrieve documents sequentially (slower but more stable)
+                retrieved_docs_lists = []
+                for q in queries:
+                    retrieved_docs = retriever.invoke(q)
+                    retrieved_docs_lists.append(retrieved_docs)
 
-                # 3. Rerank the collected documents using RRF
+                # 3. Rerank the collected documents
                 reranked_docs = reciprocal_rank_fusion(retrieved_docs_lists)
 
-                # 4. Format the context from the top reranked documents
+                # 4. Format the context
                 formatted_context = format_docs(reranked_docs)
 
-                # 5. Invoke the final chain to generate a response
+                # 5. Generate a response
                 assistant_response = final_rag_chain.invoke(
                     {"context": formatted_context, "question": prompt}
                 )
