@@ -21,7 +21,6 @@ sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 # Load environment variables from .env file for local development
 # On Streamlit Cloud, these will be set as Secrets
 load_dotenv()
-
 st.set_page_config(
     page_title="Anwesha-A Bengali PDF RAG Chatbot",
     page_icon="📚",
