@@ -10,5 +10,4 @@ langchain-openai
 ragas
 chromadb
 sentence-transformers
-faiss-cpu 
-gunicorn
+faiss-cpu
