@@ -1,10 +1,8 @@
-flask
-langchain-huggingface
-langchain-community
-langchain-groq
-langchain
 streamlit
-requests
-chromadb
-flask-cors
+python-dotenv
+langchain
+langchain-core
+langchain-huggingface
+langchain-chroma
+langchain-groq
 sentence-transformers

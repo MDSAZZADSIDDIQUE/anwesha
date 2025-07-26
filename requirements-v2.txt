@@ -1,0 +1,11 @@
+flask
+langchain-huggingface
+langchain-community
+langchain-groq
+langchain
+streamlit
+requests
+chromadb
+flask-cors
+sentence-transformers
+langchain-chroma
