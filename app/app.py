@@ -1,6 +1,6 @@
-import sys
-__import__('pysqlite3')
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+# import sys
+# __import__('pysqlite3')
+# sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import os
 import sys
 import asyncio
@@ -53,7 +53,7 @@ def load_retriever(_embeddings):
     # IMPORTANT: Ensure this path is correct relative to your app's root in the repo.
     # If your app.py is in the root, and the database is in a 'db' folder,
     # the path would be "db/anwesha_chroma_)db"
-    persist_directory = "database/anwesha_chroma_)db"
+    persist_directory = "../database/anwesha_chroma_)db"
     if not os.path.exists(persist_directory):
         st.error(
             f"ChromaDB directory not found at '{persist_directory}'. Please ensure the database directory is included in your GitHub repository and the path is correct.")

@@ -9,4 +9,4 @@ python-dotenv
 llama-parse
 langchain-openai
 sentence-transformers
-pysqlite3-binary
+# pysqlite3-binary
