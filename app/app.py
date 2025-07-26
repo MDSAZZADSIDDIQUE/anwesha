@@ -1,10 +1,10 @@
-import os
 import sys
-import asyncio
-import streamlit as st
+__import__('pysqlite3')
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 from dotenv import load_dotenv
-
-# LangChain and RAG components
+import streamlit as st
+import asyncio
+import os
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_groq import ChatGroq
@@ -14,8 +14,8 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain.prompts import ChatPromptTemplate
 from langchain.load import dumps, loads
 from operator import itemgetter
-__import__('pysqlite3')
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+
+
 # --- GLOBAL INITIALIZATION (Load models once) ---
 
 # Load environment variables from .env file for local development

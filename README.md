@@ -2,13 +2,17 @@
 
 Anwesha is a state-of-the-art Retrieval-Augmented Generation (RAG) chatbot meticulously engineered to navigate and answer questions from Rabindranath Tagore's classic short story, "Aparichita." This project stands as a testament to the power of modern AI in understanding and interacting with complex, multilingual literary texts, offering accurate, context-aware responses in both its original Bangla and English.
 
+![Gemini_Generated_Image_qfzzmqqfzzmqqfzz.png](./images_of_the_project/Gemini_Generated_Image_qfzzmqqfzzmqqfzz.png)
+![Gemini_Generated_Image_xfxidfxfxidfxfxi.png](./images_of_the_project/Gemini_Generated_Image_xfxidfxfxidfxfxi.png)
 
-## 🌟 Sample queries and outputs
+-----
 
-![Screenshot (27).png](./images_of_the_project/Screenshot (27).png)
-![Screenshot (28).png](./images_of_the_project/Screenshot (28).png)
-![Screenshot (29).png](./images_of_the_project/Screenshot (29).png)
-![Screenshot (30).png](./images_of_the_project/Screenshot (30).png)
+## 🌟 SampSample queries and outputs
+
+![Screenshot (27).png](./images_of_the_project/Screenshot%20(27).png)
+![Screenshot (28).png](./images_of_the_project/Screenshot%20(28).png)
+![Screenshot (29).png](./images_of_the_project/Screenshot%20(29).png)
+![Screenshot (30).png](./images_of_the_project//Screenshot%20(30).png)
 
 -----
 
@@ -25,9 +29,6 @@ Anwesha is more than just a chatbot; it's a showcase of a sophisticated AI pipel
   * **Multi-Query Construction:** Ambiguity is a common problem in user queries. Anwesha addresses this by using a language model to generate five different versions of a user's question. This query expansion technique casts a wider net, dramatically increasing the odds of retrieving the most relevant context, even if the user's original phrasing is vague.
   * **Comprehensive Evaluation:** The system's performance isn't just a subjective claim. It was rigorously evaluated using the **Ragas** library, a specialized framework for assessing RAG pipelines on metrics like Faithfulness, Context Recall, and Factual Correctness.
   * **Seamless Deployment:** Anwesha is brought to life using **Streamlit** for a user-friendly, interactive web interface, and was initially designed with a **Flask** backend, making it both powerful and accessible.
-
-![Gemini_Generated_Image_qfzzmqqfzzmqqfzz.png](./images_of_the_project/Gemini_Generated_Image_qfzzmqqfzzmqqfzz.png)
-![Gemini_Generated_Image_xfxidfxfxidfxfxi.png](./images_of_the_project/Gemini_Generated_Image_xfxidfxfxidfxfxi.png)
 
 -----
 
@@ -149,15 +150,19 @@ Once the text was extracted, it needed to be cleaned of noise like headers, foot
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=10000, chunk_overlap=100
 )
+
 splits = text_splitter.split_documents(docs)
+
 // Setup the LLM chain for cleaning
 llm = ChatGroq(model="moonshotai/kimi-k2-instruct")
+
 chain = (
     {"doc": lambda x: x.page_content}
     | ChatPromptTemplate.from_template("Clean and delete unnecessary stuffs from the following document without changing the conetxt:\n\n{doc}")
     | llm
     | StrOutputParser()
 )
+
 // Batch process the documents for cleaning
 cleaned_documents = chain.batch(splits, {"max_concurrency": 10})
 ```
@@ -193,7 +198,9 @@ different versions of the given user question to retrieve relevant documents fro
 database. By generating multiple perspectives on the user question, your goal is to help
 the user overcome some of the limitations of the distance-based similarity search.
 Provide these alternative questions separated by newlines. Original question: {question}"""
+
 prompt_perspectives = ChatPromptTemplate.from_template(template)
+
 generate_queries = (
     prompt_perspectives
     | ChatGroq(model="moonshotai/kimi-k2-instruct")
@@ -203,6 +210,52 @@ generate_queries = (
 ```
 
 Each of these five queries is then used to retrieve documents from the vector store. This approach significantly broadens the search space, increasing the likelihood of finding relevant context and making the system far more robust and forgiving of vague user input. This technique was chosen after experimenting with other methods like Rag-Fusion, Decomposition, and Step-back, as it yielded the best results for this specific use case.
+
+-----
+
+## ❓ Asked Questions
+
+Here are some detailed answers to common questions about the project's implementation.
+
+**1. What method or library did you use to extract the text, and why? Did you face any formatting challenges with the PDF content?**
+
+  * **Method/Library:** The primary library used for text extraction was **LlamaParse**.
+  * **Reasoning:** This choice was driven by a significant challenge: accurately parsing Bengali script from a PDF. Standard libraries like `PyPDF`, `PyMuPDF`, and `PDFPlumber` were ineffective, often failing to recognize Bengali characters correctly. While `UnstructuredPDFLoader` with its `ocr_only` strategy showed some promise, it wasn't perfect. LlamaParse, being specifically designed for complex, semi-structured documents, proved to be the "holy grail." It excelled at preserving the original layout, including paragraphs, lists, and tables, which is crucial for maintaining the semantic integrity of a literary text.
+  * **Formatting Challenges:** Yes, significant formatting challenges were encountered. These included correctly interpreting multi-column layouts, ensuring that multiple-choice questions and their options were not disconnected, and removing repetitive headers and footers that would add noise to the dataset. An initial attempt was made to use a Groq-powered LLM to dynamically clean the text, but this proved to be too resource-intensive. Ultimately, a more pragmatic approach of manual cleaning using regular expressions was adopted to address these issues.
+
+**2. What chunking strategy did you choose (e.g. paragraph-based, sentence-based, character limit)? Why do you think it works well for semantic retrieval?**
+
+  * **Strategy:** The project uses a **`RecursiveCharacterTextSplitter`**.
+  * **Reasoning:** This strategy is highly effective for semantic retrieval because it prioritizes keeping contextually related information together. For a Q\&A document, it's crucial that a question and its corresponding answer, or a full paragraph explaining a concept, remain in the same chunk. A naive character-limit chunking could easily split these related parts, making it impossible for the retriever to find the complete information needed. By maintaining these logical blocks, we provide the embedding model with richer, more coherent data to encode, which leads to more accurate and relevant search results.
+
+**3. What embedding model did you use? Why did you choose it? How does it capture the meaning of the text?**
+
+  * **Model:** The embedding model used is **`intfloat/multilingual-e5-large-instruct`**.
+  * **Reasoning:** This model was selected for three key reasons:
+    1.  **Multilingual Capability:** It provides excellent performance for both **Bangla** and **English**, a core requirement for this application.
+    2.  **Instruction-Tuned:** The `-instruct` variant is specifically fine-tuned to understand the intent behind queries, making it superior for retrieval tasks compared to general-purpose embedding models.
+    3.  **High Performance:** It is a top-tier model on the MTEB (Massive Text Embedding Benchmark), ensuring high-quality and reliable vector representations.
+  * **How it Captures Meaning:** The model converts text into high-dimensional vectors (embeddings) using a deep neural network. It's trained to place text with similar meanings close together in the vector space. This allows us to find relevant documents by searching for vectors that are "nearest" to the query's vector, effectively searching by meaning rather than just keywords.
+
+**4. How are you comparing the query with your stored chunks? Why did you choose this similarity method and storage setup?**
+
+  * **Storage and Comparison:** The document chunks are stored as embeddings in a **ChromaDB** vector store. When a user submits a query, it is converted into a vector using the same embedding model. This query vector is then compared against all the stored document vectors using a **cosine similarity** search to find the most relevant chunks. Additionally, **reciprocal rank fusion** is used to rerank the results for better accuracy.
+  * **Reasoning:**
+      * **ChromaDB** was chosen because it's a lightweight, open-source, and easy-to-use vector database that integrates seamlessly with LangChain, making it ideal for development and deployment.
+      * **Cosine Similarity** is the standard for this task because it effectively measures the semantic similarity between two vectors by calculating the angle between them, regardless of their magnitude. This makes it excellent for comparing the meaning of texts of different lengths.
+
+**5. How do you ensure that the question and the document chunks are compared meaningfully? What would happen if the query is vague or missing context?**
+
+  * **Meaningful Comparison:** Consistency is key. By using the **exact same embedding model** (`multilingual-e5-large-instruct`) for both indexing the documents and processing user queries, we ensure that both are mapped into the same semantic vector space, allowing for a fair and meaningful comparison.
+  * **Handling Vague Queries:** The system uses a **multi-query retrieval** strategy. Instead of just using the user's original query, it first passes the query to an LLM to generate five different versions of it. This query expansion technique broadens the search, increasing the likelihood of finding relevant documents even if the original phrasing was ambiguous or used different terminology than the source text. This was found to be the most effective query transformation technique after experimenting with others like Rag-Fusion, Decomposition, and Step-back.
+
+**6. Do the results seem relevant? If not, what might improve them (e.g. better chunking, better embedding model, larger document)?**
+
+  * **Relevance:** Yes, the results are highly relevant. This is not just a subjective assessment; the application includes a built-in evaluation framework using the **`ragas`** library. This allows for quantitative measurement of performance with metrics like **Faithfulness** (is the answer based on the context?), **Context Recall** (was the right context found?), and **Factual Correctness**.
+  * **Potential Improvements:**
+      * **Better Embedding Model:** Using a more advanced model like `gemini-embedding-001` and fine-tuning it on the specific domain could significantly boost performance.
+      * **Advanced Indexing:** Implementing techniques like **RAPTOR** and **ColBERT** could lead to more highly accurate and granular indexing and retrieval.
+      * **Adaptive RAG:** The ultimate improvement would be to implement an Adaptive RAG system that can learn from its interactions and dynamically adapt its retrieval strategy to best suit the user's query.
 
 -----
 
